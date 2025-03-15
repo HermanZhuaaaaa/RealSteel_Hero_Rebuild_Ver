@@ -55,14 +55,14 @@
 #define PI_THR 1.0471975511965977461542144610932f
 
 //拨弹轮电机PID
-#define TRIGGER_ANGLE_PID_KP        100.0f
+#define TRIGGER_ANGLE_PID_KP        10.0f
 #define TRIGGER_ANGLE_PID_KI        0.1f
 #define TRIGGER_ANGLE_PID_KD        0.0f
 
 #define TRIGGER_BULLET_PID_MAX_OUT  16383.0f
 #define TRIGGER_BULLET_PID_MAX_IOUT 10000.0f
 
-#define TRIGGER_READY_PID_MAX_OUT   10000.0f
+#define TRIGGER_READY_PID_MAX_OUT   16000.0f
 #define TRIGGER_READY_PID_MAX_IOUT  7000.0f
 
 //摩擦轮电机速度环PID
@@ -91,18 +91,13 @@ typedef struct
 	const Motor_dat_t *shoot_motor_measure[2];
 	const Motor_dat_t *trigger_motor_measure;
 	
-	ramp_function_source_t *fric1_ramp;
-	uint16_t fric_pwm1;
-	
-	ramp_function_source_t *fric2_ramp;
-	uint16_t fric_pwm2;
+    int16_t Fric_speed_set[2];//摩擦轮速度设定值
 	
 	pid_type_def trigger_motor_pid;
 	pid_type_def shooter_motor_pid[2];
-	float trigger_speed_set;
+	float trigger_speed_set;//拨弹盘速度设定值
 	float speed;
 	float speed_set;
-	
 	float angle;
 	float angle_set;
 	
@@ -140,5 +135,6 @@ void shoot_set_mode(void);
 void shoot_bullet_control(void);
 //英雄无法堵转掉头，故不使用此代码，无需处理
 void trigger_motor_turn_back(void);
+void shoot_set_mode_2(void);
 
 #endif

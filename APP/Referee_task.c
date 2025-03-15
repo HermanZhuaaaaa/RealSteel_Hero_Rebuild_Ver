@@ -14,6 +14,8 @@ referee_info_t referee_info;              // 裁判系统数据
 uint8_t uart7_rx_buffer[255];
 extern DMA_HandleTypeDef hdma_uart7_rx;
 
+uint32_t SysTimerFreq;
+
 extern uint8_t usart5_buf[USART5_BUFLEN];
 
 extern RC_ctrl_t RC_ctrl;
@@ -22,6 +24,7 @@ int ui_self_id = 0;							//机器人ID
 
 void referee_task_main(void *argument)
 {
+	SysTimerFreq = osKernelGetSysTimerFreq();
     /* USER CODE BEGIN referee_task_main */
     //HAL_UARTEx_ReceiveToIdle_DMA(&huart5,usart5_buf,USART5_BUFLEN);
     HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer, 255);
@@ -167,7 +170,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer, 255);
         __HAL_DMA_DISABLE_IT(&hdma_uart7_rx, DMA_IT_HT);         // 手动关闭DMA_IT_HT中断
     }
-
     if (huart->Instance == UART5)
     {
         Dbus_to_rc(usart5_buf, &RC_ctrl);

@@ -23,10 +23,10 @@
 #define GIMBAL_RC_DEADLINE 10
 /**************************************************/
 
-#define YAW_RC_SEN    0.0008f
-#define PITCH_RC_SEN  0.0008f //0.005
+#define YAW_RC_SEN    0.0001f	// 0.0001
+#define PITCH_RC_SEN  0.0001f //0.005
 
-#define YAW_MOUSE_SEN   0.0008f
+#define YAW_MOUSE_SEN   0.001f	//0.0005
 #define PITCH_MOUSE_SEN 0.0004f
 
 #define YAW_ENCODE_SEN    1.01f
@@ -36,49 +36,49 @@
 //	float PID_Gimbal_Pitch_args[2][3] = {{25, 0, 100},{80, 0, 0}};
 
 //pitch 速度环 PID参数
-#define PITCH_SPEED_PID_KP        40.0f
-#define PITCH_SPEED_PID_KI        0.1f
+#define PITCH_SPEED_PID_KP        -20.0f
+#define PITCH_SPEED_PID_KI        0.0f
 #define PITCH_SPEED_PID_KD        0.0f
-#define PITCH_SPEED_PID_MAX_OUT   25000.0f
+#define PITCH_SPEED_PID_MAX_OUT   16383.0f
 #define PITCH_SPEED_PID_MAX_IOUT  16383.0f
 //yaw   速度环 PID参数
-#define YAW_SPEED_PID_KP        40.0f
-#define YAW_SPEED_PID_KI        0.1f
+#define YAW_SPEED_PID_KP        -10.0f
+#define YAW_SPEED_PID_KI        0.0f
 #define YAW_SPEED_PID_KD        0.0f
-#define YAW_SPEED_PID_MAX_OUT   25000.0f
+#define YAW_SPEED_PID_MAX_OUT   16383.0f
 #define YAW_SPEED_PID_MAX_IOUT  10000.0f
 
 //pitch 角度环 角度由陀螺仪解算 PID参数
-#define PITCH_GYRO_ABSOLUTE_PID_KP 			15.0f
+#define PITCH_GYRO_ABSOLUTE_PID_KP 			30.0f
 #define PITCH_GYRO_ABSOLUTE_PID_KI 			0.0f
-#define PITCH_GYRO_ABSOLUTE_PID_KD 			100.0f
-#define PITCH_GYRO_ABSOLUTE_PID_MAX_OUT 	300.0f
+#define PITCH_GYRO_ABSOLUTE_PID_KD 			30.0f
+#define PITCH_GYRO_ABSOLUTE_PID_MAX_OUT 	3000.0f
 #define PITCH_GYRO_ABSOLUTE_PID_MAX_IOUT 	0.0f
 //yaw 角度环 角度由陀螺仪解算 PID参数
-#define YAW_GYRO_ABSOLUTE_PID_KP        1600.0f
-#define YAW_GYRO_ABSOLUTE_PID_KI        0.0f
-#define YAW_GYRO_ABSOLUTE_PID_KD        1000.5f
-#define YAW_GYRO_ABSOLUTE_PID_MAX_OUT   300.0f
+#define YAW_GYRO_ABSOLUTE_PID_KP        6.0f	//6	//30
+#define YAW_GYRO_ABSOLUTE_PID_KI        0.1f	//0.1
+#define YAW_GYRO_ABSOLUTE_PID_KD        6.0f	//6	//1.9
+#define YAW_GYRO_ABSOLUTE_PID_MAX_OUT   1000.0f
 #define YAW_GYRO_ABSOLUTE_PID_MAX_IOUT  0.0f
 
 //pitch 角度环 角度由编码器 PID参数
-#define PITCH_ENCODE_RELATIVE_PID_KP 		-10.5f
+#define PITCH_ENCODE_RELATIVE_PID_KP 		15.0f
 #define PITCH_ENCODE_RELATIVE_PID_KI 		0.0f
 #define PITCH_ENCODE_RELATIVE_PID_KD 		0.8f
 #define PITCH_ENCODE_RELATIVE_PID_MAX_OUT 	300.0f
 #define PITCH_ENCODE_RELATIVE_PID_MAX_IOUT 	0.0f
 //yaw 角度环 角度由编码器 PID参数
-#define YAW_ENCODE_RELATIVE_PID_KP        1.0f
+#define YAW_ENCODE_RELATIVE_PID_KP        0.15f
 #define YAW_ENCODE_RELATIVE_PID_KI        0.0f
-#define YAW_ENCODE_RELATIVE_PID_KD        0.0f
-#define YAW_ENCODE_RELATIVE_PID_MAX_OUT   700.0f
+#define YAW_ENCODE_RELATIVE_PID_KD        1.5f
+#define YAW_ENCODE_RELATIVE_PID_MAX_OUT   600.0f
 #define YAW_ENCODE_RELATIVE_PID_MAX_IOUT  0.0f
 
 //电机编码值最大以及中值
 #define HALF_ECD_RANGE  4096
 #define ECD_RANGE       8191
 //电机编码值转化成角度值
-#define MOTOR_ECD_TO_RAD 0.000766990394f //  2*PI/8192
+#define MOTOR_ECD_TO_RAD 0.0439453125f //  360/8192
 
 //云台初始化回中值，允许的误差,并且在误差范围内停止一段时间以及最大时间6s后解除初始化状态，
 #define GIMBAL_INIT_ANGLE_ERROR     0.1f
@@ -100,21 +100,22 @@
 //云台角度死区
 #define GIMBAL_CONTROL_ABSOLUTE_DEADZONE 1.0f
 //手动测试出的云台初始化数据
-#define PITCH_LOW_ECD 6936
-#define PITCH_HIGH_ECD 6227
-#define PITCH_MID_ECD 6800
+#define PITCH_LOW_ECD 7036
+#define PITCH_HIGH_ECD 6270
+#define PITCH_MID_ECD 6870
 
 #define PITCH_MIN 147
-#define PITCH_MAX 182
+#define PITCH_MAX 191
 #define PITCH_MID 180
 
-#define YAW_INIT_ECD 4240
+#define YAW_INIT_ECD 6096
 
 typedef enum
 {
 	GIMBAL_MOTOR_RAW = 0,	//电机原始值控制
 	GIMBAL_MOTOR_GYRO,		//电机由陀螺仪角度控制
 	GIMBAL_MOTOR_ENCODER,	//电机由编码器角度控制
+	YAW_STABLE				//云台稳定状态
 }gimbal_motor_mode_e;
 
 typedef enum
@@ -146,6 +147,18 @@ typedef struct
 
 typedef struct
 {
+	float Yaw_Set;
+	float Yaw_Ref;
+
+	float distance_set;
+	float distance_ref;
+	
+	float last_Yaw_Set;
+	float setup_ref;
+}motor_distance_t;
+
+typedef struct
+{
 
 	const Motor_dat_t *gimbal_motor_measure;		//电机原始数据
 	gimbal_motor_mode_e gimbal_motor_mode;
@@ -156,6 +169,8 @@ typedef struct
 	pid_type_def gimbal_motor_gyro_pid;
 
 	uint16_t offset_ecd;
+	
+	motor_distance_t yaw_distance;
 	float max_relative_angle;
 	float min_relative_angle;
 	
@@ -170,6 +185,8 @@ typedef struct
 	float motor_speed;
 	float raw_cmd_current;
 	float current_set;
+	
+	float stable_set;
 	
 	int16_t given_current;	//扭矩电流
 }gimbal_motor_t;
@@ -196,6 +213,8 @@ typedef struct
 	float 				gimbal_roll;		//云台电机的roll角度
 	float				gimbal_gyro[3];		//云台电机角速度
 	
+	
+	
 	gimbal_motor_t 		gimbal_yaw_motor;
 	gimbal_motor_t 		gimbal_pitch_motor;
 	gimbal_step_cali_t 	gimbal_limitation;
@@ -218,6 +237,7 @@ float gimbal_PID_calc(gimbal_PID_t *pid,float get,float set,float error_delta);
 void gimbal_PID_clear(gimbal_PID_t *gimbal_pid_clear);
 void gimbal_feedback_update(gimbal_control_t *gimbal_feedback_update);
 float motor_ecd_to_angle_change(uint16_t ecd, uint16_t offset_ecd);
-
+//yaw电机保持稳定，遥控器只控制底盘运动
+void gimbal_yaw_stable_control_limit(gimbal_motor_t *gimbal_motor, float add);
 
 #endif

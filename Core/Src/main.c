@@ -109,9 +109,9 @@ int main(void)
   MX_UART5_Init();
   MX_FDCAN1_Init();
   MX_SPI2_Init();
-  MX_TIM3_Init();
   MX_USART10_UART_Init();
   MX_UART7_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   can_bsp_init();
   remoter_start();

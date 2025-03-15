@@ -4,7 +4,6 @@
 #include "BMI088driver.h"
 #include "gpio.h"
 #include "tim.h"
-//#include "adc.h"
 #include "kalman_filter.h"
 #include "QuaternionEKF.h"
 #include "pid.h"

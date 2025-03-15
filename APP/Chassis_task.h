@@ -9,7 +9,10 @@
 #include "bsp_usart.h"
 #include "Motor.h"
 
-
+//电机编码值转化成角度值
+#ifndef MOTOR_ECD_TO_RAD
+#define MOTOR_ECD_TO_RAD 0.0439453125f //  360/8192
+#endif
 //任务开始空闲一段时间
 #define CHASSIS_TASK_INIT_TIME 500
 //任务间隔时间 2ms
@@ -39,7 +42,7 @@
 #define CHASSIS_BACK_KEY KEY_PRESSED_OFFSET_S
 #define CHASSIS_LEFT_KEY KEY_PRESSED_OFFSET_A
 #define CHASSIS_RIGHT_KEY KEY_PRESSED_OFFSET_D
-
+#define CHASSIS_LITTLE_TOP_KEY KEY_PRESSED_OFFSET_G
 
 /*********************************************************************************/
 //遥控器前进摇杆（max 660）转化成车体前进速度（m/s）的比例
@@ -48,19 +51,21 @@
 #define CHASSIS_VY_RC_SEN 15
 
 //跟随底盘yaw模式下，遥控器的yaw遥杆（max 660）增加到车体角度的比例
-#define CHASSIS_ANGLE_Z_RC_SEN 0
+#define CHASSIS_ANGLE_Z_RC_SEN 0.5
 //不跟随云台的时候 遥控器的yaw遥杆（max 660）转化成车体旋转速度的比例
 #define CHASSIS_WZ_RC_SEN 3
+//小陀螺模式下，WZ计算比例系数
+#define LITTLE_TOP_WZ_SEN 800
 
 //单个底盘电机最大速度
-#define MAX_WHEEL_SPEED 2000.0f
+#define MAX_WHEEL_SPEED 3500.0f
 
 //底盘运动过程最大前进速度
-#define NORMAL_MAX_CHASSIS_SPEED_X 800.0f
+#define NORMAL_MAX_CHASSIS_SPEED_X 1500.0f
 //底盘运动过程最大平移速度
-#define NORMAL_MAX_CHASSIS_SPEED_Y 800.0f
-//底盘旋转角速度转换比例
-#define CHASSIS_WZ_SET_SCALE 0.3f
+#define NORMAL_MAX_CHASSIS_SPEED_Y 1500.0f
+//偏心
+#define CHASSIS_WZ_SET_SCALE 0.0f
 
 //m3508转化成底盘速度(m/s)的比例，在此我们不进行实际速度转换，直接通过电机转速来标记机器人速度
 #define CHASSIS_MOTOR_RPM_TO_VECTOR_SEN 1
@@ -93,7 +98,7 @@
 #define CHASSIS_FOLLOW_GIMBAL_PID_KP 5.0f
 #define CHASSIS_FOLLOW_GIMBAL_PID_KI 0
 #define CHASSIS_FOLLOW_GIMBAL_PID_KD 0.2f
-#define CHASSIS_FOLLOW_GIMBAL_PID_MAX_OUT 2000.0f
+#define CHASSIS_FOLLOW_GIMBAL_PID_MAX_OUT 500.0f
 #define CHASSIS_FOLLOW_GIMBAL_PID_MAX_IOUT 3000.0f
 
 #ifndef PI
@@ -107,6 +112,7 @@ typedef enum
 	CHASSIS_VECTOR_FOLLOW_CHASSIS_YAW,	//底盘自己角度环
 	CHASSIS_VECTOR_NO_FOLLOW_YAW,		//底盘由按键直接控制
 	CHASSIS_VECTOR_RAW,					//底盘原始状态
+	CHASSIS_VECTOR_LITTLE_TOP			//底盘小陀螺
 }chassis_mode_e;
 
 typedef struct
@@ -152,6 +158,10 @@ typedef struct
 	
 	float chassis_yaw;				//陀螺仪和云台电机叠加的yaw角度
 	float chassis_yaw_positive;	//YAW云台正方向电角度位置
+	
+	float chassis_yaw_little_top;	//小陀螺模式下的中间yaw变量
+	float chassis_yaw_little_top_temp;
+	int16_t chassis_little_top_speed[4];
 
 }chassis_move_t;
 

@@ -1,7 +1,7 @@
 #include "Chassis_task.h"
 #include "Chassis_perform.h"
 #include "imu_temp_ctrl.h"
-
+#include "power_ctrl.h"
 
 #define rc_deadband_limit(input, output, dealine)        \
     {                                                    \
@@ -18,14 +18,14 @@
 
 chassis_move_t chassis_move;    //底盘运动数据结构体
 extern IMU_Data_t IMU_Data;     //imu数据结构体
-
+extern Chassis_Power_Data_t Chassis_Power_Data;
 void chassis_task_main(void *argument)
 {
     //初始化暂停
-    vTaskDelay(CHASSIS_TASK_INIT_TIME);
+    //vTaskDelay(CHASSIS_TASK_INIT_TIME);
     //初始化底盘电机数据
     chassis_init(&chassis_move);
-
+	power_ctrl_init(&Chassis_Power_Data);
     /* USER CODE BEGIN chassis_task_main */
 
     /* Infinite loop */
@@ -42,9 +42,12 @@ void chassis_task_main(void *argument)
         //底盘控制PID循环计算
         chassis_control_loop(&chassis_move);
 
+		power_ctrl(&Chassis_Power_Data);
         //发送CAN数据
-        Chassis_cmd_CAN(chassis_move.motor_chassis[0].given_current, chassis_move.motor_chassis[1].given_current,
-                        chassis_move.motor_chassis[2].given_current, chassis_move.motor_chassis[3].given_current);
+        Chassis_cmd_CAN(Chassis_Power_Data.newTorqueCurrent[0], Chassis_Power_Data.newTorqueCurrent[1],
+                        Chassis_Power_Data.newTorqueCurrent[2], Chassis_Power_Data.newTorqueCurrent[3]);
+//        Chassis_cmd_CAN(chassis_move.motor_chassis[0].given_current, chassis_move.motor_chassis[1].given_current,
+//                        chassis_move.motor_chassis[2].given_current, chassis_move.motor_chassis[3].given_current);
 
         //系统延迟
         vTaskDelay(CHASSIS_CONTROL_TIME_MS);
@@ -120,10 +123,16 @@ void chassis_set_mode(chassis_move_t *chassis_move_mode)
 void chassis_vector_to_mecanum_wheel_speed(float vx_set, float vy_set, float wz_set, float wheel_speed[4])
 {
     //旋转时候 云台偏心可能会导致前后旋转速度不一致，但无所谓,这里没有加入偏心修正
-    wheel_speed[0] = -vx_set - vy_set + (CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
-    wheel_speed[1] =  vx_set - vy_set + (CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
-    wheel_speed[2] =  vx_set + vy_set + (-CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
-    wheel_speed[3] = -vx_set + vy_set + (-CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
+	/*
+	-	-	+
+	+	-	+
+	+	+	-
+	-	+	-
+	*/
+    wheel_speed[0] =  vx_set + vy_set + (-CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
+    wheel_speed[1] = -vx_set + vy_set + (-CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
+    wheel_speed[2] = -vx_set - vy_set + (CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
+    wheel_speed[3] =  vx_set - vy_set + (CHASSIS_WZ_SET_SCALE - 1.0f)*wz_set;
 }
 
 /**
@@ -151,7 +160,14 @@ void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
         //如果是RAW原始模式，直接返回
         return;
     }
-
+	//判断模式，如果是LITTLE_TOP原始模式
+	else if (chassis_move_control_loop->chassis_mode == CHASSIS_VECTOR_LITTLE_TOP)
+	{
+		for (i = 0; i< 4; i++)
+		{
+			wheel_speed[i] = chassis_move_control_loop->chassis_little_top_speed[i];
+		}
+	}
     //计算轮子最大速度，并进行限幅
     for (i = 0; i<4; i++)
     {
@@ -212,7 +228,7 @@ void chassis_feedback_update(chassis_move_t *chassis_move_update)
     chassis_move_update->wz = (-chassis_move_update->motor_chassis[0].speed - chassis_move_update->motor_chassis[1].speed - chassis_move_update->motor_chassis[2].speed - chassis_move_update->motor_chassis[3].speed) * MOTOR_SPEED_TO_CHASSIS_SPEED_WZ / MOTOR_DISTANCE_TO_CENTER;
 
     //计算底盘姿态角度
-    chassis_move_update->chassis_yaw = chassis_move_update->chassis_yaw_motor->gimbal_motor_measure->ecd;
+    chassis_move_update->chassis_yaw = chassis_move_update->chassis_yaw_motor->gimbal_motor_measure->ecd * MOTOR_ECD_TO_RAD;
 }
 
 /**
@@ -242,9 +258,9 @@ void chassis_init(chassis_move_t *chassis_move_init)
     //获取遥控器指针
     chassis_move_init->chassis_RC = get_remote_control_point();
     //获取姿态数据
-    chassis_move_init->chassis_yaw = chassis_move_init->chassis_yaw_motor->gimbal_motor_measure->ecd;
-    chassis_move_init->chassis_yaw_positive = YAW_INIT_ECD;
-
+    chassis_move_init->chassis_yaw = chassis_move_init->chassis_yaw_motor->gimbal_motor_measure->ecd * MOTOR_ECD_TO_RAD;
+    chassis_move_init->chassis_yaw_positive = YAW_INIT_ECD * MOTOR_ECD_TO_RAD;
+	chassis_move_init->chassis_yaw_little_top = chassis_move_init->chassis_yaw;
     //初始化底盘电机速度PID
     for (int i = 0; i < 4; i++)
     {
@@ -266,6 +282,21 @@ void chassis_init(chassis_move_t *chassis_move_init)
     chassis_move_init->vy_max_speed = NORMAL_MAX_CHASSIS_SPEED_Y;
     chassis_move_init->vy_min_speed = -NORMAL_MAX_CHASSIS_SPEED_Y;
 
+//	for (uint8_t i = 0; i< 1500; i++)
+//	{
+//		float delta_angle = 0.0f;
+//        //设置底盘控制的角度（弧度制）
+//        chassis_move_init->chassis_yaw_set = YAW_INIT_ECD;
+//        delta_angle = chassis_move_init->chassis_yaw_set - chassis_move_init->chassis_yaw;//rad_format(chassis_move_control->chassis_yaw_set - chassis_move_control->chassis_yaw);
+//        //计算旋转的角速度
+//        chassis_move_init->wz_set = PID_calc(&chassis_move_init->chassis_angle_pid, 0.0f, delta_angle);
+//		chassis_control_loop(chassis_move_init);
+//        //发送CAN数据
+//        Chassis_cmd_CAN(chassis_move.motor_chassis[0].given_current, chassis_move.motor_chassis[1].given_current,
+//                        chassis_move.motor_chassis[2].given_current, chassis_move.motor_chassis[3].given_current);
+//		vTaskDelay(2);
+//	}
+	
     //更新一下数据
     chassis_feedback_update(chassis_move_init);
 
@@ -353,9 +384,14 @@ void chassis_set_control(chassis_move_t *chassis_move_control)
     //云台跟随模式
     if (chassis_move_control->chassis_mode == CHASSIS_VECTOR_FOLLOW_GIMBAL_YAW)
     {
-        chassis_move_control->chassis_relative_angle = chassis_move_control->chassis_yaw_positive - chassis_move_control->chassis_yaw_motor->gimbal_motor_measure->ecd;
+        chassis_move_control->chassis_relative_angle = chassis_move_control->chassis_yaw_positive - (chassis_move_control->chassis_yaw_motor->gimbal_motor_measure->ecd)*MOTOR_ECD_TO_RAD;
         //计算PID角速度
-        chassis_move_control->wz_set = -PID_calc(&chassis_move_control->chassis_angle_pid, chassis_move_control->chassis_relative_angle, 0);
+		//云台相对底盘角度在1.5范围内忽略不计
+		if (chassis_move_control->chassis_relative_angle <= 0.05 && chassis_move_control->chassis_relative_angle >= -0.05)
+		{
+			chassis_move_control->chassis_relative_angle = 0;
+        }
+		chassis_move_control->wz_set = -PID_calc(&chassis_move_control->chassis_angle_pid, chassis_move_control->chassis_relative_angle, 0);
         //速度限幅
         chassis_move_control->vx_set = float_constrain(vx_set, chassis_move_control->vx_min_speed, chassis_move_control->vx_max_speed);
         chassis_move_control->vy_set = float_constrain(vy_set, chassis_move_control->vy_min_speed, chassis_move_control->vy_max_speed);

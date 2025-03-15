@@ -168,7 +168,7 @@ typedef struct
 {
 	uint16_t reserved1; 
 	uint16_t reserved2; 
-	float reserved3; 
+	float chassis_power; 
 	uint16_t buffer_energy; 
 	uint16_t shooter_17mm_1_barrel_heat; 
 	uint16_t shooter_17mm_2_barrel_heat; 

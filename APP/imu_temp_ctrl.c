@@ -5,8 +5,8 @@
 #define correct_Time_define 1000    //上电去0飘 1000次取平均
 #define temp_times 100       //探测温度阈值
 
-IMU_Data_t IMU_Data;                //imu数据结构体
 
+IMU_Data_t IMU_Data;                //imu数据结构体
 
 pid_type_def Temperature_PID= {0};          //温度pid
 float Temperature_PID_Para[3]= {286, 0, 0}; //温度pid参数

@@ -4,7 +4,6 @@
 #include "math.h"
 #include "main.h"
 
-
 uint8_t GlobalDebugMode = 7;
 
 //快速开方求倒数

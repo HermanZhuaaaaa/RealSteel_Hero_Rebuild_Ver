@@ -7,8 +7,9 @@
 typedef enum
 {
 	GIMBAL_ZERO_FORCE = 0,
+	GIMBAL_YAW_VECTOR_STABLE,
 	GIMBAL_ABSOLUTE_ANGLE,
-	GIMBAL_RELATIVE_ANGLE,
+	GIMBAL_RELATIVE_ANGLE
 }gimbal_behaviour_e;
 
 /**
@@ -34,6 +35,11 @@ void gimbal_zero_force_control(float *yaw, float *pitch, gimbal_control_t *gimba
   * @retval         none
   */
 void gimbal_absolute_angle_control(float *yaw, float *pitch, gimbal_control_t *gimbal_control_set);
+
+//当底盘行为模式是 GIMBAL_YAW_VECTOR_STABLE下，遥控器控制底盘的运动，此时云台的方向保持不变
+void gimbal_yaw_stable_control(float *yaw,float *pitch,gimbal_control_t * gimbal_control_set);
+
+
 /**
   * @brief          云台编码值控制，电机是相对角度控制，
   * @param[in]      yaw: yaw轴角度控制，为角度的增量 单位 rad

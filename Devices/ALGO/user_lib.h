@@ -15,6 +15,15 @@
 #include "stdint.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include "stdbool.h"
+
+typedef struct {
+    uint8_t     judge_state;    //状态机状态（延时时间）
+    bool        key_state;        //原始状态
+    bool        single_flag;    //短按消抖完成标志位
+    bool        long_flag;        //长按消抖完成标志位
+    uint16_t    key_time;        //按下的时间
+}key_state_t;
 
 enum
 {

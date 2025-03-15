@@ -58,6 +58,8 @@
 "realsteel_hero\gimbal_perform.o"
 "realsteel_hero\chassis_power_control.o"
 "realsteel_hero\crc_ref.o"
+"realsteel_hero\power_ctrl.o"
+"realsteel_hero\rls.o"
 "realsteel_hero\bsp_usart.o"
 "realsteel_hero\can_bsp.o"
 "realsteel_hero\bsp_dwt.o"

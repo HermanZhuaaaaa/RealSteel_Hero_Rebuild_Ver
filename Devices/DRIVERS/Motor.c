@@ -9,6 +9,9 @@ Motor_dat_t motor_shoot[3];
 //电机的角度信息 用于存储拨弹盘角度、Yaw角度、Pitch角度
 //Motor_Angle motor_trigger_angle,motor_gimbal_pitch_angle,motor_gimbal_yaw_angle;
 
+double chassis_power;
+double current;
+double voltage;
 
 //fdcan1缓存区
 uint8_t rx_data1[8] = {0};
@@ -27,7 +30,12 @@ void Fdcan1_callback(FDCAN_HandleTypeDef *hfdcan)
 	    case 0x203 : Motor_dat_transmit(&motor_chassis[2], rx_data1);
 		             break;
 		case 0x204 : Motor_dat_transmit(&motor_chassis[3], rx_data1);
-		             break;		
+		             break;	
+		case 0x212:
+					voltage = ((int32_t)(rx_data1[1]<<8)|(int32_t)(rx_data1[0]))/100.0;
+					current = ((int32_t)(rx_data1[3]<<8)|(int32_t)(rx_data1[2]))/100.0;
+					chassis_power = voltage * current;		
+					break;
 		default : break;
 	}
 	

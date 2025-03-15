@@ -12,7 +12,8 @@ typedef enum
 	CHASSIS_NO_MOVE,			//底盘不动，电机固定角度
 	CHASSIS_FOLLOW_GIMBAL_YAW,	//底盘跟随云台
 	CHASSIS_NO_FOLLOW_YAW,		//底盘无角度，只有速度环
-	CHASSIS_OPEN_LOOP			//底盘开环 遥控器数值乘系数直接发送电机
+	CHASSIS_OPEN_LOOP,			//底盘开环 遥控器数值乘系数直接发送电机
+	CHASSIS_LITTLE_TOP			//小陀螺模式
 }chassis_behaviour_e;
 
 void chassis_behaviour_mode_set(chassis_move_t *chassis_move_mode);

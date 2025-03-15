@@ -34,9 +34,14 @@ void gimbal_behaviour_set(gimbal_control_t *gimbal_mode_set)
 	{
 		return;
 	}
-	//拨杆开关控制云台状态
-	//云台跟随
-	if(switch_is_up(gimbal_mode_set->gimbal_RC->rc.s[GIMBAL_MODE_CHANNEL]))
+	//遥控器模式设置，右侧拨杆来设置模式 
+	/**********************************
+	 *1 up		损坏，不用
+	 *3 mid		静默
+	 *2 down	云台跟随
+	 **********************************
+	 */	//云台跟随
+	if(switch_is_down(gimbal_mode_set->gimbal_RC->rc.s[GIMBAL_MODE_CHANNEL]))
 	{
 		gimbal_behaviour = GIMBAL_ABSOLUTE_ANGLE;
 	}
@@ -45,10 +50,10 @@ void gimbal_behaviour_set(gimbal_control_t *gimbal_mode_set)
 	{
 		gimbal_behaviour = GIMBAL_ZERO_FORCE;
 	}
-	//自己的角度环
-	else if(switch_is_down(gimbal_mode_set->gimbal_RC->rc.s[GIMBAL_MODE_CHANNEL]))
+	//自己的角度环 不用 
+	else if(switch_is_up(gimbal_mode_set->gimbal_RC->rc.s[GIMBAL_MODE_CHANNEL]))
 	{
-		gimbal_behaviour = GIMBAL_RELATIVE_ANGLE;
+		//gimbal_behaviour = GIMBAL_YAW_VECTOR_STABLE;
 	}
 }
 
@@ -76,9 +81,16 @@ void gimbal_behaviour_mode_set(gimbal_control_t *gimbal_mode_set)
         gimbal_mode_set->gimbal_yaw_motor.gimbal_motor_mode = GIMBAL_MOTOR_GYRO;
         gimbal_mode_set->gimbal_pitch_motor.gimbal_motor_mode = GIMBAL_MOTOR_GYRO;
     }
+	
+	else if (gimbal_behaviour == GIMBAL_YAW_VECTOR_STABLE)
+	{
+		//在此模式下，遥控器控制底盘运动，云台保持稳定
+        gimbal_mode_set->gimbal_yaw_motor.gimbal_motor_mode = YAW_STABLE;
+        gimbal_mode_set->gimbal_pitch_motor.gimbal_motor_mode = GIMBAL_MOTOR_ENCODER;	
+	}
     else if (gimbal_behaviour == GIMBAL_RELATIVE_ANGLE)
     {
-        gimbal_mode_set->gimbal_yaw_motor.gimbal_motor_mode = GIMBAL_MOTOR_ENCODER;
+        gimbal_mode_set->gimbal_yaw_motor.gimbal_motor_mode = YAW_STABLE;
         gimbal_mode_set->gimbal_pitch_motor.gimbal_motor_mode = GIMBAL_MOTOR_ENCODER;
     }
 }
@@ -89,6 +101,9 @@ void gimbal_behaviour_mode_set(gimbal_control_t *gimbal_mode_set)
   * @param[in]      gimbal_mode_set:云台数据指针
   * @retval         none
   */
+
+
+//TODO LIST
 void gimbal_behaviour_control_set(float *add_yaw, float *add_pitch, gimbal_control_t *gimbal_control_set)
 {
 	if(gimbal_control_set == NULL || add_yaw == NULL || add_pitch == NULL)
@@ -103,11 +118,38 @@ void gimbal_behaviour_control_set(float *add_yaw, float *add_pitch, gimbal_contr
     {
         gimbal_absolute_angle_control(add_yaw, add_pitch, gimbal_control_set);
     }
+	
+	else if (gimbal_behaviour == GIMBAL_YAW_VECTOR_STABLE)
+	{
+		gimbal_yaw_stable_control(add_yaw,add_pitch,gimbal_control_set);
+	}
+	
     else if (gimbal_behaviour == GIMBAL_RELATIVE_ANGLE)
     {
         gimbal_relative_angle_control(add_yaw, add_pitch, gimbal_control_set);
     }
 }
+
+//当底盘行为模式是 GIMBAL_YAW_VECTOR_STABLE下，遥控器控制底盘的运动，此时云台的方向保持不变
+void gimbal_yaw_stable_control(float *yaw,float *pitch,gimbal_control_t * gimbal_control_set)
+{
+	if(yaw == NULL || pitch == NULL || gimbal_control_set == NULL)
+	{
+		return;
+	}
+	static int16_t yaw_channel = 0, pitch_channel = 0;
+    rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_YAW_CHANNEL], yaw_channel, GIMBAL_RC_DEADLINE);
+    rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_PITCH_CHANNEL], pitch_channel, GIMBAL_RC_DEADLINE);
+
+	float stable_yaw_ref = gimbal_control_set->gimbal_yaw_motor.stable_set - gimbal_control_set->gimbal_yaw;
+	*yaw = -gimbal_PID_calc(&gimbal_control_set->gimbal_yaw_motor.gimbal_motor_absolute_angle_pid,stable_yaw_ref,0,0);
+    *pitch = -(pitch_channel * PITCH_RC_SEN + gimbal_control_set->gimbal_RC->mouse.y * PITCH_MOUSE_SEN);
+	
+}
+
+
+
+
 /**
   * @brief          当云台行为模式是GIMBAL_ZERO_FORCE, 这个函数会被调用,云台控制模式是raw模式.原始模式意味着
   *                 设定值会直接发送到CAN总线上,这个函数将会设置所有为0.
@@ -142,7 +184,7 @@ void gimbal_absolute_angle_control(float *yaw, float *pitch, gimbal_control_t *g
     static int16_t yaw_channel = 0, pitch_channel = 0;
     rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_YAW_CHANNEL], yaw_channel, GIMBAL_RC_DEADLINE);
     rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_PITCH_CHANNEL], pitch_channel, GIMBAL_RC_DEADLINE);
-    *yaw = -(yaw_channel * YAW_RC_SEN - gimbal_control_set->gimbal_RC->mouse.x * YAW_MOUSE_SEN);
+    *yaw = -(yaw_channel * YAW_RC_SEN + gimbal_control_set->gimbal_RC->mouse.x * YAW_MOUSE_SEN);
     *pitch = -(pitch_channel * PITCH_RC_SEN + gimbal_control_set->gimbal_RC->mouse.y * PITCH_MOUSE_SEN);
 }
 /**
@@ -161,7 +203,12 @@ void gimbal_relative_angle_control(float *yaw, float *pitch, gimbal_control_t *g
     static int16_t yaw_channel = 0, pitch_channel = 0;
     rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_YAW_CHANNEL], yaw_channel, GIMBAL_RC_DEADLINE);
     rc_deadband_limit(gimbal_control_set->gimbal_RC->rc.ch[GIMBAL_PITCH_CHANNEL], pitch_channel, GIMBAL_RC_DEADLINE);
-    *yaw  = -(yaw_channel * YAW_RC_SEN - gimbal_control_set->gimbal_RC->mouse.x * YAW_MOUSE_SEN);
+    
+	//relative模式下，
+	*yaw = 0;
+	
+	
+	//*yaw  = -(yaw_channel * YAW_RC_SEN - gimbal_control_set->gimbal_RC->mouse.x * YAW_MOUSE_SEN);
     *pitch = -(pitch_channel * PITCH_RC_SEN + gimbal_control_set->gimbal_RC->mouse.y * PITCH_MOUSE_SEN);
 }
 

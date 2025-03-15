@@ -12,9 +12,16 @@ RC_ctrl_t RC_ctrl;
 //开启遥控器不定长接收
 void remoter_start(void)
 {
+	//HAL_UART_Receive_DMA(&huart5,usart5_buf,USART5_BUFLEN);
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart5,usart5_buf,USART5_BUFLEN);
 	__HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);		   // 手动关闭DMA_IT_HT中断
 }
+
+//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+//{
+//	Dbus_to_rc(usart5_buf, &RC_ctrl);
+//}
+
 
 /**
   * @brief          遥控器协议解析

@@ -4,7 +4,8 @@
 
 chassis_behaviour_e chassis_behaviour_mode = CHASSIS_ZERO_FORCE;	//底盘电机状态
 extern chassis_move_t chassis_move;
-
+uint8_t is_press_Little_Top = 0;
+key_state_t key = {0};
 /**
   * @brief          通过逻辑判断，赋值"chassis_behaviour_mode"成哪种模式
   * @param[in]      chassis_move_mode: 底盘数据
@@ -19,22 +20,35 @@ void chassis_behaviour_mode_set(chassis_move_t *chassis_move_mode)
 	
 	//遥控器模式设置，右侧拨杆来设置模式 
 	/**********************************
-	 *1 up		云台跟随
-	 *3 mid		电机不动
-	 *2 down	单底盘速度环
+	 *1 up		损坏，不用
+	 *3 mid		静默
+	 *2 down	底盘跟随
 	 **********************************
 	 */
-	if(switch_is_up(chassis_move_mode->chassis_RC->rc.s[CHASSIS_MODE_CHANNEL]))
+	if(switch_is_down(chassis_move_mode->chassis_RC->rc.s[CHASSIS_MODE_CHANNEL]))
 	{
-		chassis_behaviour_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
+		if (chassis_move_mode->chassis_RC->key.v & CHASSIS_LITTLE_TOP_KEY)
+		{
+			if(is_press_Little_Top == 0) is_press_Little_Top = 1;
+			else is_press_Little_Top = 0;
+		}
+		if(is_press_Little_Top == 1) chassis_behaviour_mode = CHASSIS_LITTLE_TOP;
+		else chassis_behaviour_mode = CHASSIS_FOLLOW_GIMBAL_YAW;
 	}
 	else if(switch_is_mid(chassis_move_mode->chassis_RC->rc.s[CHASSIS_MODE_CHANNEL]))
 	{
 		chassis_behaviour_mode = CHASSIS_NO_MOVE;
 	}
-	else if(switch_is_down(chassis_move_mode->chassis_RC->rc.s[CHASSIS_MODE_CHANNEL]))
+	else if(switch_is_up(chassis_move_mode->chassis_RC->rc.s[CHASSIS_MODE_CHANNEL]))
 	{
-		chassis_behaviour_mode = CHASSIS_NO_FOLLOW_YAW;
+		//delete 
+		//chassis_behaviour_mode = CHASSIS_NO_FOLLOW_YAW;
+		//小陀螺模式装载在各个fsswwfwsf移动模式下
+		//不对 小陀螺模式下，云台朝向不变，说明陀螺仪数据不变，不能开在云台相对角度下
+		if (chassis_move_mode->chassis_RC->key.v & CHASSIS_LITTLE_TOP_KEY)
+		{
+			//chassis_behaviour_mode = CHASSIS_LITTLE_TOP;
+		}
 	}
 	
 	//通过拨杆控制底盘电机状态behaviour，通过状态设置底盘模式mode
@@ -51,6 +65,11 @@ void chassis_behaviour_mode_set(chassis_move_t *chassis_move_mode)
     {
         chassis_move_mode->chassis_mode = CHASSIS_VECTOR_NO_FOLLOW_YAW; 
     }
+	
+	else if (chassis_behaviour_mode == CHASSIS_LITTLE_TOP)
+	{
+		chassis_move_mode->chassis_mode = CHASSIS_VECTOR_LITTLE_TOP;
+	}
 }
 
 /**
@@ -66,8 +85,8 @@ void chassis_behaviour_control_set(float *vx_set, float *vy_set, float *angle_se
 	if(vx_set == NULL || vy_set == NULL || angle_set == NULL || chassis_move_rc_to_vector == NULL)
 	{
 		return;
-	}
-	
+	}	
+
 	if(chassis_behaviour_mode == CHASSIS_FOLLOW_GIMBAL_YAW)
 	{
 		chassis_follow_gimbal_yaw_control(vx_set,vy_set, angle_set,chassis_move_rc_to_vector);
@@ -79,6 +98,10 @@ void chassis_behaviour_control_set(float *vx_set, float *vy_set, float *angle_se
 	else if (chassis_behaviour_mode == CHASSIS_NO_FOLLOW_YAW)
 	{
 		chassis_no_follow_yaw_control(vx_set,vy_set,angle_set,chassis_move_rc_to_vector);
+	}
+	else if (is_press_Little_Top)
+	{
+		chassis_little_top_move_control(vx_set,vy_set,angle_set,chassis_move_rc_to_vector);
 	}
 }
 
@@ -174,4 +197,24 @@ void chassis_little_top_move_control(float *vx_set, float *vy_set, float *angle_
 		return;
 	}
 	//代码未完成
+	chassis_move_rc_to_vector->chassis_yaw_little_top = -chassis_move_rc_to_vector->chassis_yaw + 180;
+	
+//	if (chassis_move_rc_to_vector->chassis_yaw_little_top > chassis_move_rc_to_vector->chassis_yaw_little_top_temp)
+//	{
+//		chassis_move_rc_to_vector->chassis_yaw_little_top = chassis_move_rc_to_vector->chassis_yaw_little_top - chassis_move_rc_to_vector->chassis_yaw_little_top_temp;
+//	}
+//	else 
+//	{
+//		chassis_move_rc_to_vector->chassis_yaw_little_top = chassis_move_rc_to_vector->chassis_yaw_little_top + 360 - chassis_move_rc_to_vector->chassis_yaw_little_top_temp;
+//	}
+
+	chassis_rc_to_control_vector(vx_set,vy_set,chassis_move_rc_to_vector);
+	*angle_set = -CHASSIS_WZ_RC_SEN * chassis_move_rc_to_vector->chassis_RC->rc.ch[CHASSIS_WZ_CHANNEL];
+
+	chassis_move_rc_to_vector->chassis_little_top_speed[3] = (int16_t)(-(*vx_set + 1.0 )* sin( (45 + chassis_move_rc_to_vector->chassis_yaw_little_top) * (PI/180.0f) ) + (*vy_set + 1.0 ) * cos( (chassis_move_rc_to_vector->chassis_yaw_little_top+45) * (PI/180.0f) ) + LITTLE_TOP_WZ_SEN*(*angle_set+1.0)); 
+	chassis_move_rc_to_vector->chassis_little_top_speed[2] = (int16_t)((*vx_set + 1.0 ) * sin( (45 - chassis_move_rc_to_vector->chassis_yaw_little_top) * (PI/180.0f) ) - (*vy_set + 1.0 ) * cos( (chassis_move_rc_to_vector->chassis_yaw_little_top-45) * (PI/180.0f) ) + LITTLE_TOP_WZ_SEN*(*angle_set+1.0)); 
+	chassis_move_rc_to_vector->chassis_little_top_speed[1] = (int16_t)((*vx_set + 1.0 ) * sin( (45 + chassis_move_rc_to_vector->chassis_yaw_little_top) * (PI/180.0f) ) - (*vy_set + 1.0 ) * cos( (45+chassis_move_rc_to_vector->chassis_yaw_little_top) * (PI/180.0f) ) + LITTLE_TOP_WZ_SEN*(*angle_set+1.0)); 
+	chassis_move_rc_to_vector->chassis_little_top_speed[0] = (int16_t)(-(*vx_set + 1.0 ) * sin( (45 - chassis_move_rc_to_vector->chassis_yaw_little_top) * (PI/180.0f) ) + (*vy_set + 1.0 ) * cos( (chassis_move_rc_to_vector->chassis_yaw_little_top-45) * (PI/180.0f) ) +LITTLE_TOP_WZ_SEN*(*angle_set+1.0)); 
+
+	
 }
